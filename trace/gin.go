@@ -9,7 +9,7 @@ import (
 )
 
 // GinTrace returns a gin middleware that add span for every request
-func GinTrace(stackTrace bool) gin.HandlerFunc {
+func GinTrace() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctxWithTrace := HTTPHeaderExtract(c.Request.Context(), c.Request.Header)
 		ctx, span := Start(ctxWithTrace, c.Request.URL.Path)
