@@ -9,6 +9,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -22,6 +24,8 @@ const (
 	// SpanEventKey is the key used by the Otel handler
 	// to inject the log record in the recording span, as a span event.
 	SpanEventKey = "log_record"
+
+	SpanServiceNameKey = "service_name"
 )
 
 // OtelHandler is an implementation of slog's Handler interface.
@@ -122,13 +126,17 @@ func (h OtelHandler) Handle(ctx context.Context, record slog.Record) error {
 	// Adding span info to log record.
 	spanContext := span.SpanContext()
 	if spanContext.HasTraceID() {
-		traceID := spanContext.TraceID().String()
-		record.AddAttrs(slog.String(TraceIDKey, traceID))
+		record.AddAttrs(slog.String(TraceIDKey, spanContext.TraceID().String()))
 	}
 
 	if spanContext.HasSpanID() {
-		spanID := spanContext.SpanID().String()
-		record.AddAttrs(slog.String(SpanIDKey, spanID))
+		record.AddAttrs(slog.String(SpanIDKey, spanContext.SpanID().String()))
+	}
+
+	if rSpan, ok := span.(interface{ Resource() *resource.Resource }); ok {
+		if serviceName, ok := rSpan.Resource().Set().Value(semconv.ServiceNameKey); ok {
+			record.AddAttrs(slog.String(SpanServiceNameKey, serviceName.AsString()))
+		}
 	}
 
 	// Setting span status if the log is an error.
